@@ -1,0 +1,57 @@
+import requests
+from bs4 import BeautifulSoup
+import csv
+import time
+
+# List to store all scraped book data across multiple pages
+all_books_data = []
+
+# Loop through the first 5 pages of the site
+for page_num in range(1, 6):
+    # Build the URL dynamically using f-string
+    URL = f"https://books.toscrape.com/catalogue/page-{page_num}.html"
+    print(f"Scraping page {page_num}: {URL}")
+
+    # Send HTTP GET request to the page
+    response = requests.get(URL)
+
+    # Check if the request was successful (status code 200 = OK)
+    if response.status_code != 200:
+        print(f"Page {page_num} not found. Stopping.")
+        break  # Stop the loop if a page is missing
+
+    print(f"Status code: {response.status_code}")
+
+    # Parse the HTML content of the page
+    soup = BeautifulSoup(response.content, "html.parser")
+
+    # Find all book containers on the page
+    all_books = soup.find_all("article", class_="product_pod")
+
+    # Extract details for each book
+    for book in all_books:
+        title = book.h3.a["title"]  # Book title
+        price = book.find("p", class_="price_color").text  # Book price
+        rating = book.p["class"][1]   # Rating stored as a CSS class (e.g., "Three")
+
+        # Store book info in a dictionary
+        book_info = {
+            "title": title,
+            "price": price,
+            "rating": f"{rating} stars"
+        }
+
+        # Add the dictionary to the list
+        all_books_data.append(book_info)
+
+    # Pause for 1 second between requests to avoid overloading the server
+    time.sleep(1)
+
+# After scraping all pages, write the data to a CSV file
+with open("books.csv", "w", newline="", encoding="utf-8") as file:
+    headers = ["title", "price", "rating"]  # Define CSV column headers
+    writer = csv.DictWriter(file, fieldnames=headers)
+    writer.writeheader()  # Write header row
+    writer.writerows(all_books_data)  # Write all book data rows
+
+print("Scraping complete! Check for books.csv in the file list.")
